@@ -1,0 +1,95 @@
+name: shougaku_kore_doutoku
+description: "小学コレ！道徳 ～かっこいい大人になるために～。小学3-4年生が、日常のジレンマを選択肢型ストーリーで体験しながら、親向けの月次成長レポートで判断力の成長を見守るサブスク型道徳学習アプリ。"
+publish_to: 'none'
+
+version: 0.1.0+1
+
+environment:
+  sdk: ^3.11.5
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # UI & Material Design
+  cupertino_icons: ^1.0.8
+
+  # State Management
+  flutter_riverpod: ^2.4.0
+  riverpod_annotation: ^2.3.0
+
+  # Firebase
+  firebase_core: ^2.13.0
+  cloud_firestore: ^4.8.0
+  firebase_auth: ^4.6.0
+  firebase_analytics: ^10.4.0
+  firebase_messaging: ^14.7.0
+  google_sign_in: ^6.2.1
+  # flutter_local_notifications: (disabled for build - use FCM only)
+
+  # HTTP & API
+  dio: ^5.4.0
+
+  # Local Storage & Caching
+  hive: ^2.2.0
+  hive_flutter: ^1.1.0
+  shared_preferences: ^2.2.0
+  sqflite: ^2.3.0
+  cached_network_image: ^3.3.0
+
+  # JSON Serialization
+  json_serializable: ^6.7.0
+  json_annotation: ^4.8.0
+
+  # Audio & Narration
+  audioplayers: ^5.2.0
+  flutter_tts: ^4.2.5
+
+  # Charting (for radar chart in parent report)
+  fl_chart: ^0.68.0
+
+  # Environment variables
+  flutter_dotenv: ^5.2.0
+
+  # Localization
+  intl: ^0.19.0
+
+  # Secure Storage (for tokens)
+  flutter_secure_storage: ^9.2.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.14.1
+
+  # Code Generation
+  build_runner: ^2.4.0
+  riverpod_generator: ^2.3.0
+
+  # Test helpers
+  path_provider_platform_interface: ^2.1.0
+  plugin_platform_interface: ^2.1.0
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/images/
+    - assets/sounds/
+    - .env
+    - .env.local
+
+  # fonts:
+  #   - family: NotoSansJP
+  #     fonts:
+  #       - asset: assets/fonts/NotoSansJP-Regular.ttf
+  #       - asset: assets/fonts/NotoSansJP-Bold.ttf
+  #         weight: 700
+  # TODO: Download NotoSansJP fonts from Google Fonts and place in assets/fonts/
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/icons/app_icon.png"
