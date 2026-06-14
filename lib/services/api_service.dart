@@ -1,256 +1,195 @@
-import 'package:dio/dio.dart';
-import 'dart:developer' as developer;
-import '../models/child_profile.dart';
-import '../models/story.dart';
-import '../models/progress.dart';
-import '../models/report.dart';
-import '../config/api_config.dart';
+﻿import 'package:dio/dio.dart';
+import '../models/distribution_response.dart';
+import '../models/revisit_schedule.dart';
+import '../models/parent_child_comparison.dart';
+import '../models/kindness_mission.dart';
+import '../models/ai_features.dart';
 
-/// Central HTTP client for the backend API.
 class ApiService {
-  late final Dio _dio;
+  final Dio _dio;
+  static const String _baseUrl = 'https://api.shougaku-kore.jp/api/v1';
 
-  ApiService() {
-    _dio = Dio(
-      BaseOptions(
-        baseUrl: apiBaseUrl,
-        connectTimeout: const Duration(seconds: apiTimeoutSeconds),
-        receiveTimeout: const Duration(seconds: apiTimeoutSeconds),
-        headers: {'Content-Type': 'application/json'},
-      ),
-    );
-    _dio.interceptors.add(LoggingInterceptor());
-  }
+  ApiService({Dio? dio})
+      : _dio = dio ??
+            Dio(
+              BaseOptions(
+                baseUrl: _baseUrl,
+                connectTimeout: const Duration(seconds: 10),
+                receiveTimeout: const Duration(seconds: 10),
+              ),
+            );
 
-  // ── Auth token ────────────────────────────────────────────────────────────
-
-  void setAuthToken(String token) {
-    _dio.options.headers['Authorization'] = 'Bearer $token';
-  }
-
-  void clearAuthToken() {
-    _dio.options.headers.remove('Authorization');
-  }
-
-  // ── Auth ──────────────────────────────────────────────────────────────────
-
-  Future<Map<String, dynamic>> register({
-    required String email,
-    required String password,
-    required String name,
-  }) async {
-    final r = await _dio.post('$authEndpoint/register',
-        data: {'email': email, 'password': password, 'name': name});
-    return r.data as Map<String, dynamic>;
-  }
-
-  Future<Map<String, dynamic>> login({
-    required String email,
-    required String password,
-  }) async {
-    final r = await _dio.post('$authEndpoint/login',
-        data: {'email': email, 'password': password});
-    return r.data as Map<String, dynamic>;
-  }
-
-  Future<Map<String, dynamic>> loginWithFirebase(String idToken) async {
-    final r = await _dio.post('$authEndpoint/firebase',
-        data: {'idToken': idToken});
-    return r.data as Map<String, dynamic>;
-  }
-
-  // ── Users ────────────────────────────────────────────────────────────────
-
-  /// 自分のプロフィールを更新する (name / fcmToken)
-  Future<Map<String, dynamic>> updateUser({
-    String? name,
-    String? fcmToken,
-  }) async {
-    final body = <String, dynamic>{
-      // ignore: use_null_aware_elements
-      if (name != null) 'name': name,
-      // ignore: use_null_aware_elements
-      if (fcmToken != null) 'fcmToken': fcmToken,
-    };
-    final r = await _dio.put('$usersEndpoint/me', data: body);
-    return r.data as Map<String, dynamic>;
-  }
-
-  // ── Children ──────────────────────────────────────────────────────────────
-
-  Future<List<ChildProfile>> fetchChildrenProfiles() async {
-    final r = await _dio.get(childrenEndpoint);
-    final list = r.data as List<dynamic>;
-    return list
-        .map((j) => ChildProfile.fromApiJson(j as Map<String, dynamic>))
-        .toList();
-  }
-
-  Future<ChildProfile> fetchChildProfile(String childId) async {
-    final r = await _dio.get('$childrenEndpoint/$childId');
-    return ChildProfile.fromApiJson(r.data as Map<String, dynamic>);
-  }
-
-  Future<ChildProfile> createChild({
-    required String name,
-    required int grade,
-    required String avatarEmoji,
-  }) async {
-    final r = await _dio.post(childrenEndpoint,
-        data: {'name': name, 'grade': grade, 'avatarEmoji': avatarEmoji});
-    return ChildProfile.fromApiJson(r.data as Map<String, dynamic>);
-  }
-
-  Future<ChildProfile> updateChild(
-      String childId, Map<String, dynamic> updates) async {
-    final r = await _dio.put('$childrenEndpoint/$childId', data: updates);
-    return ChildProfile.fromApiJson(r.data as Map<String, dynamic>);
-  }
-
-  Future<void> deleteChild(String childId) async {
-    await _dio.delete('$childrenEndpoint/$childId');
-  }
-
-  // ── Stories ───────────────────────────────────────────────────────────────
-
-  Future<List<Story>> fetchStories({
-    String? theme,
-    int? gradeLevel,
-    bool? isPremium,
-    int offset = 0,
-    int limit = 20,
-  }) async {
-    final r = await _dio.get(
-      storiesEndpoint,
-      queryParameters: {
-        // ignore: use_null_aware_elements
-        if (theme != null) 'theme': theme,
-        // ignore: use_null_aware_elements
-        if (gradeLevel != null) 'gradeLevel': gradeLevel,
-        // ignore: use_null_aware_elements
-        if (isPremium != null) 'isPremium': isPremium,
-        'offset': offset,
-        'limit': limit,
-      },
-    );
-    final list = r.data as List<dynamic>;
-    return list.map((j) => Story.fromJson(j as Map<String, dynamic>)).toList();
-  }
-
-  Future<Story> fetchStoryDetail(String storyId) async {
-    final r = await _dio.get('$storiesEndpoint/$storyId');
-    return Story.fromJson(r.data as Map<String, dynamic>);
-  }
-
-  Future<List<Story>> fetchWeeklyTheme(int weekNumber) async {
-    final r = await _dio.get('$storiesEndpoint/weekly/$weekNumber');
-    final list = r.data as List<dynamic>;
-    return list.map((j) => Story.fromJson(j as Map<String, dynamic>)).toList();
-  }
-
-  // ── Quizzes ───────────────────────────────────────────────────────────────
-
-  /// Start a quiz session. Returns session data including sessionId.
-  Future<Map<String, dynamic>> startQuizSession({
-    required String childId,
-    required String storyId,
-  }) async {
-    final r = await _dio.post(quizzesEndpoint,
-        data: {'childId': childId, 'storyId': storyId});
-    return r.data as Map<String, dynamic>;
-  }
-
-  /// Complete a quiz session with the chosen choice.
-  Future<Map<String, dynamic>> completeQuizSession({
-    required String sessionId,
-    required String chosenChoiceId,
-    required int timeSpentSeconds,
-    String? reflectionText,
-  }) async {
-    final r = await _dio.post(
-      '$quizzesEndpoint/$sessionId/complete',
-      data: {
-        'chosenChoiceId': chosenChoiceId,
-        'timeSpentSeconds': timeSpentSeconds,
-        // ignore: use_null_aware_elements
-        if (reflectionText != null) 'reflectionText': reflectionText,
-      },
-    );
-    return r.data as Map<String, dynamic>;
-  }
-
-  // ── Progress ──────────────────────────────────────────────────────────────
-
-  Future<List<Progress>> fetchProgress(String childId, {int limit = 100}) async {
-    final r = await _dio.get(
-      '$progressEndpoint/$childId',
-      queryParameters: {'limit': limit},
-    );
-    final list = r.data as List<dynamic>;
-    return list
-        .map((j) => Progress.fromJson(j as Map<String, dynamic>))
-        .toList();
-  }
-
-  Future<void> saveProgress(Progress progress) async {
-    await _dio.post(progressEndpoint, data: progress.toJson());
-  }
-
-  // ── Reports ───────────────────────────────────────────────────────────────
-
-  Future<MonthlyReport?> fetchMonthlyReport({
-    required String childId,
-    required int year,
-    required int month,
-  }) async {
+  Future<DistributionResponse> getDistribution(String storyId) async {
     try {
-      final r = await _dio.get(
-        '$reportsEndpoint/$childId/monthly',
-        queryParameters: {'year': year, 'month': month},
-      );
-      if (r.data == null) return null;
-      return MonthlyReport.fromJson(r.data as Map<String, dynamic>);
+      final response = await _dio.get('/stories/$storyId/distribution');
+      return DistributionResponse.fromJson(response.data);
     } on DioException catch (e) {
-      if (e.response?.statusCode == 404) return null;
-      rethrow;
+      throw Exception('Failed to fetch distribution: ${e.message}');
     }
   }
 
-  Future<MonthlyReport> generateMonthlyReport({
-    required String childId,
-    required int year,
-    required int month,
-  }) async {
-    final r = await _dio.post(
-      '$reportsEndpoint/$childId/monthly/generate',
-      queryParameters: {'year': year, 'month': month},
-    );
-    return MonthlyReport.fromJson(r.data as Map<String, dynamic>);
-  }
-}
-
-// ── Logging interceptor ────────────────────────────────────────────────────
-
-class LoggingInterceptor extends Interceptor {
-  @override
-  void onRequest(RequestOptions options, RequestInterceptorHandler handler) {
-    developer.log('→ ${options.method} ${options.uri}', name: 'API');
-    handler.next(options);
+  Future<List<RevisitStory>> getRevisitStories(String userId) async {
+    try {
+      final response = await _dio.get('/users/$userId/revisit-stories');
+      final List<dynamic> data = response.data['revisits'] ?? [];
+      return data.map((item) => RevisitStory.fromJson(item)).toList();
+    } on DioException catch (e) {
+      throw Exception('Failed to fetch revisit stories: ${e.message}');
+    }
   }
 
-  @override
-  void onResponse(Response response, ResponseInterceptorHandler handler) {
-    developer.log('← ${response.statusCode} ${response.requestOptions.path}', name: 'API');
-    handler.next(response);
+  Future<RevisitResult> answerRevisitStory(
+    String revisitId,
+    String answerChoice,
+  ) async {
+    try {
+      final response = await _dio.post(
+        '/revisit-stories/$revisitId/answer',
+        data: {'answer_choice': answerChoice},
+      );
+      return RevisitResult.fromJson(response.data);
+    } on DioException catch (e) {
+      throw Exception('Failed to answer revisit story: ${e.message}');
+    }
   }
 
-  @override
-  void onError(DioException err, ErrorInterceptorHandler handler) {
-    developer.log(
-      '✗ ${err.response?.statusCode ?? "?"} ${err.requestOptions.path}: ${err.message}',
-      name: 'API',
-      error: err,
-    );
-    handler.next(err);
+  Future<ParentAnswerResponse> answerParentChildStory(
+    String parentId,
+    String childId,
+    String storyId,
+    String answerChoice,
+  ) async {
+    try {
+      final response = await _dio.post(
+        '/parent-child/$parentId/$childId/answer',
+        data: {
+          'story_id': storyId,
+          'answer_choice': answerChoice,
+        },
+      );
+      return ParentAnswerResponse.fromJson(response.data);
+    } on DioException catch (e) {
+      throw Exception('Failed to answer parent-child story: ${e.message}');
+    }
+  }
+
+  Future<List<ParentChildComparison>> getParentChildDialogueHistory(
+    String parentId,
+    String childId,
+  ) async {
+    try {
+      final response = await _dio.get(
+        '/parent-child/$parentId/$childId/dialogue-history',
+      );
+      final List<dynamic> data = response.data['histories'] ?? [];
+      return data.map((item) => ParentChildComparison.fromJson(item)).toList();
+    } on DioException catch (e) {
+      throw Exception('Failed to fetch dialogue history: ${e.message}');
+    }
+  }
+
+  Future<ParentChildComparison?> getLatestParentChildComparison(
+    String parentId,
+    String childId,
+  ) async {
+    try {
+      final histories = await getParentChildDialogueHistory(parentId, childId);
+      return histories.isNotEmpty ? histories.first : null;
+    } on DioException catch (e) {
+      throw Exception('Failed to fetch latest comparison: ${e.message}');
+    }
+  }
+
+  Future<KindnessMission> getCurrentMission(String userId) async {
+    try {
+      final response = await _dio.get('/users/$userId/kindness/mission');
+      return KindnessMission.fromJson(response.data);
+    } on DioException catch (e) {
+      throw Exception('Failed to fetch mission: ${e.message}');
+    }
+  }
+
+  Future<KindnessRecordResponse> recordKindness(
+    String userId,
+    String description,
+    String? person,
+    String? context,
+  ) async {
+    try {
+      final response = await _dio.post(
+        '/users/$userId/kindness-records',
+        data: {
+          'kindness_description': description,
+          'person_involved': person,
+          'context': context,
+        },
+      );
+      return KindnessRecordResponse.fromJson(response.data);
+    } on DioException catch (e) {
+      throw Exception('Failed to record kindness: ${e.message}');
+    }
+  }
+
+  Future<KindnessMap> getKindnessMap(String userId, String month) async {
+    try {
+      final response = await _dio.get(
+        '/users/$userId/kindness-map/$month',
+      );
+      return KindnessMap.fromJson(response.data);
+    } on DioException catch (e) {
+      throw Exception('Failed to fetch kindness map: ${e.message}');
+    }
+  }
+
+  // ③ りゆう記録分析（月50人抽出版）
+  Future<ReasonAnalysis?> getReasonAnalysis(String userId, String month) async {
+    try {
+      final response = await _dio.get(
+        '/users/$userId/reason-analysis/$month',
+      );
+      if (response.statusCode == 204) return null;
+      return ReasonAnalysis.fromJson(response.data);
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 404) return null;
+      throw Exception('Failed to fetch reason analysis: ${e.message}');
+    }
+  }
+
+  // ⑤ 創作フィード — 記録
+  Future<void> submitCreation(
+    String userId,
+    String storyId,
+    String storyTitle,
+    String userCreatedEnding,
+  ) async {
+    try {
+      await _dio.post(
+        '/users/$userId/creations',
+        data: {
+          'story_id': storyId,
+          'story_title': storyTitle,
+          'user_created_ending': userCreatedEnding,
+        },
+      );
+    } on DioException catch (e) {
+      throw Exception('Failed to submit creation: ${e.message}');
+    }
+  }
+
+  // ⑤ 創作フィード — 月次フィードバック取得
+  Future<CreationFeedback?> getCreationFeedback(
+    String userId,
+    String month,
+  ) async {
+    try {
+      final response = await _dio.get(
+        '/users/$userId/creation-feedback/$month',
+      );
+      if (response.statusCode == 204) return null;
+      return CreationFeedback.fromJson(response.data);
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 404) return null;
+      throw Exception('Failed to fetch creation feedback: ${e.message}');
+    }
   }
 }

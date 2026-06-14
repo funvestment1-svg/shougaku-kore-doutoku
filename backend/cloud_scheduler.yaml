@@ -1,0 +1,70 @@
+﻿# Cloud Scheduler ジョブ設定
+# gcloud scheduler jobs create http <job-name> で登録
+
+jobs:
+
+  # ③ りゆう記録分析 — 毎月1日 09:00 JST
+  - name: monthly-reason-analysis
+    description: "月次やさしさ記録 AI分析（50人抽出版）"
+    schedule: "0 0 1 * *"
+    timezone: "Asia/Tokyo"
+    target:
+      uri: "https://api.shougaku-kore.jp/api/v1/jobs/monthly-reason-analysis"
+      http_method: POST
+      headers:
+        Content-Type: application/json
+        X-Internal-Token: "${INTERNAL_JOB_TOKEN}"
+    retry_config:
+      retry_count: 3
+      min_backoff_duration: 5s
+
+  # ⑤ 創作フィード月次フィードバック — 毎月末日 21:00 JST
+  - name: monthly-creation-feedback
+    description: "月末一括創作フィードバック生成"
+    schedule: "0 12 28-31 * *"
+    timezone: "Asia/Tokyo"
+    target:
+      uri: "https://api.shougaku-kore.jp/api/v1/jobs/monthly-creation-feedback"
+      http_method: POST
+      headers:
+        Content-Type: application/json
+        X-Internal-Token: "${INTERNAL_JOB_TOKEN}"
+    retry_config:
+      retry_count: 3
+      min_backoff_duration: 5s
+
+  # ① 全国分布集計 — 毎日 23:00 JST
+  - name: daily-answer-statistics
+    description: "回答の日次集計（全国分布用）"
+    schedule: "0 14 * * *"
+    timezone: "Asia/Tokyo"
+    target:
+      uri: "https://api.shougaku-kore.jp/api/v1/jobs/daily-statistics"
+      http_method: POST
+      headers:
+        Content-Type: application/json
+        X-Internal-Token: "${INTERNAL_JOB_TOKEN}"
+
+  # ② 再訪スケジュール生成 — 毎月1日 08:00 JST
+  - name: monthly-revisit-trigger
+    description: "3ヶ月前の回答を再訪スケジュールに登録"
+    schedule: "0 23 1 * *"
+    timezone: "Asia/Tokyo"
+    target:
+      uri: "https://api.shougaku-kore.jp/api/v1/jobs/monthly-revisit-trigger"
+      http_method: POST
+      headers:
+        Content-Type: application/json
+        X-Internal-Token: "${INTERNAL_JOB_TOKEN}"
+
+  # ⑥ やさしさミッション週次配信 — 毎週月曜 09:00 JST
+  - name: weekly-kindness-mission
+    description: "週次やさしさ探しミッション配信"
+    schedule: "0 0 * * 1"
+    timezone: "Asia/Tokyo"
+    target:
+      uri: "https://api.shougaku-kore.jp/api/v1/jobs/weekly-kindness-mission"
+      http_method: POST
+      headers:
+        Content-Type: application/json
+        X-Internal-Token: "${INTERNAL_JOB_TOKEN}"
